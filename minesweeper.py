@@ -5,7 +5,6 @@ Created on 12 Jun 2017
 '''
 from typing import List
 from random import shuffle, sample
-from unicodedata import east_asian_width
 
 class Cell(object):
     
@@ -47,15 +46,14 @@ class TerminalUI(object):
             print("You lost. Better luck next time!")
             
     def take_input(self, board, width, height):
-        text = input("Your turn. Input action x y: ")
-        action, tx, ty = text.split(" ")
-        x, y = int(tx), int(ty)
-        """
-        action = input("Enter action (toggle, open, force): ")
-        x = int(input(f"Enter the x coordinate (0<=x<{width}): "))
-        y = int(input(f"Enter the y coordinate (0<=y<{height}): "))
-        """
-        return action, x, y
+        while True:
+            try:
+                text = input("Your turn. Input action x y: ")
+                action, tx, ty = text.split(" ")
+                x, y = int(tx), int(ty)
+                return action, x, y
+            except ValueError:
+                print("Invalid input. Expected: <action> <x> <y> (e.g. 'open 3 4')\n")
 
     def invalid_input(self, action, x, y):
         print(f"Cannot {action} at ({x}, {y}). Try again.\n")
@@ -65,7 +63,7 @@ class MineSweeper(object):
     '''
     hardness = [10, 20, 40]
 
-    def __init__(self, width:int, height:int, level:int, ui=TerminalUI()):
+    def __init__(self, width:int, height:int, level:int, ui=None):
         self.width = width
         self.height = height
         self.level = level
@@ -73,7 +71,7 @@ class MineSweeper(object):
         self.flags = 0
         self.open_cells = 0
         self.blowed_up = False
-        self.ui = ui
+        self.ui = ui if ui is not None else TerminalUI()
         self.create_board()
         self.set_mines()
         
@@ -162,12 +160,7 @@ class MineSweeper(object):
             return False
         neighbour_flags = sum([1 for n in self.neighbours(cell) if n.flagged])
         if cell.neighbour_mines == neighbour_flags:
-            cell.open = True
-            self.open_cells += 1
-            if cell.mine:
-                self.blowed_up = True
-            else:
-                self.open_area(cell)
+            self.open_area(cell)
             return True
         else:
             return False
@@ -177,13 +170,13 @@ class MineSweeper(object):
         while len(queue):
             cell = queue.pop(0)
             for neighbour in self.neighbours(cell):
-                if not neighbour.mine:
-                    neighbour_flags = sum([1 for n in self.neighbours(neighbour) if n.flagged])
-                    if neighbour.neighbour_mines == neighbour_flags and not neighbour.open and not neighbour.flagged:
-                        queue.append(neighbour) 
                 if not neighbour.open and not neighbour.flagged:
                     self.open_cells += 1
                     neighbour.open = True
+                    if neighbour.mine:
+                        self.blowed_up = True
+                    elif neighbour.neighbour_mines == 0:
+                        queue.append(neighbour)
                     
     def game_over(self):
         return self.blowed_up or self.width * self.height - self.open_cells == self.mines
